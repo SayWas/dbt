@@ -16,3 +16,26 @@
 3. Выполнить `bash infra/scripts/deploy.sh`.
 
 После деплоя Airflow должен быть доступен на серверном хосте/порту.
+
+## Если скрипт падает на `set -euo pipefail`
+
+Причина: shell-скрипт или compose-файл попал на сервер с Windows-окончаниями (`CRLF`) и/или BOM.
+Тогда bash читает строку как `set -euo pipefail\r` и падает с `invalid option name`.
+
+Нормализация на сервере:
+
+```bash
+sed -i '1s/^\xEF\xBB\xBF//' infra/scripts/*.sh
+sed -i 's/\r$//' infra/scripts/*.sh .env infra/docker-compose.server.yml
+```
+
+Проверка синтаксиса:
+
+```bash
+bash -n infra/scripts/deploy.sh && echo "deploy.sh syntax OK"
+```
+
+Профилактика в репозитории:
+
+- В проекте уже добавлен `.gitattributes` с `eol=lf` для `*.sh`, `*.yml`, `.env*`.
+- После изменения этого файла можно один раз сделать `git add --renormalize .` и закоммитить нормализованные файлы.
