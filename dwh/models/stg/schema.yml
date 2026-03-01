@@ -1,0 +1,36 @@
+version: 2
+
+sources:
+  - name: stg
+    schema: "{{ env_var('POSTGRES_STG_SCHEMA', 'stg') }}"
+    tables:
+      - name: stg_raw_flight_prices
+        description: "Сырые записи цен после EL-переноса из MongoDB."
+
+models:
+  - name: stg_raw_flight_prices
+    description: "Очищенный STG-слой для дальнейших трансформаций."
+    columns:
+      - name: record_hash
+        description: "Детерминированный хеш записи для дедупликации."
+        tests:
+          - unique
+          - not_null
+      - name: route_origin
+        description: "Код аэропорта вылета."
+        tests:
+          - not_null
+      - name: route_destination
+        description: "Код аэропорта прилета."
+        tests:
+          - not_null
+      - name: ticket_class
+        description: "Класс билета."
+        tests:
+          - accepted_values:
+              values: ["economy", "business"]
+      - name: currency
+        description: "Валюта цены."
+        tests:
+          - accepted_values:
+              values: ["RUB", "USD", "EUR"]

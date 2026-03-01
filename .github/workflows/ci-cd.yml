@@ -1,0 +1,150 @@
+name: CI/CD
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-cd-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Quality checks
+    runs-on: ubuntu-latest
+    env:
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: dwh
+      POSTGRES_USER: dwh
+      POSTGRES_PASSWORD: dwh
+      POSTGRES_STG_SCHEMA: stg
+      POSTGRES_ODS_SCHEMA: ods
+      POSTGRES_DWH_SCHEMA: dwh
+      POSTGRES_DM_SCHEMA: dm
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: dwh
+          POSTGRES_USER: dwh
+          POSTGRES_PASSWORD: dwh
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U dwh -d dwh"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install quality dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pre-commit dbt-postgres psycopg2-binary
+
+      - name: Run pre-commit
+        run: pre-commit run --all-files
+
+      - name: Prepare dbt source table
+        run: |
+          python - <<'PY'
+          import os
+          import psycopg2
+
+          conn = psycopg2.connect(
+              host=os.getenv("POSTGRES_HOST", "localhost"),
+              port=os.getenv("POSTGRES_PORT", "5432"),
+              dbname=os.getenv("POSTGRES_DB", "dwh"),
+              user=os.getenv("POSTGRES_USER", "dwh"),
+              password=os.getenv("POSTGRES_PASSWORD", "dwh"),
+          )
+          conn.autocommit = True
+          with conn.cursor() as cur:
+              cur.execute("CREATE SCHEMA IF NOT EXISTS stg;")
+              cur.execute(
+                  '''
+                  CREATE TABLE IF NOT EXISTS stg.stg_raw_flight_prices (
+                      record_hash TEXT PRIMARY KEY,
+                      route_origin TEXT NOT NULL,
+                      route_destination TEXT NOT NULL,
+                      departure_at TIMESTAMPTZ NOT NULL,
+                      captured_at TIMESTAMPTZ NOT NULL,
+                      ticket_class TEXT NOT NULL,
+                      currency TEXT NOT NULL,
+                      price NUMERIC(12, 2) NOT NULL,
+                      ingested_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                  );
+                  '''
+              )
+          conn.close()
+          PY
+
+      - name: Install dbt packages
+        run: dbt deps --project-dir dwh --profiles-dir dwh/profiles
+
+      - name: Parse dbt project
+        run: dbt parse --project-dir dwh --profiles-dir dwh/profiles
+
+      - name: Run dbt models
+        run: dbt run --project-dir dwh --profiles-dir dwh/profiles --select tag:stg tag:ods tag:dwh tag:dm
+
+      - name: Run dbt tests (core suite)
+        run: >
+          dbt test --project-dir dwh --profiles-dir dwh/profiles
+          --select tag:stg tag:ods tag:dwh tag:dm
+          --exclude test_name:volume_anomalies
+          test_name:event_freshness_anomalies
+          test_name:column_anomalies
+          test_name:all_columns_anomalies
+          test_name:dimension_anomalies
+          test_name:freshness_anomalies
+
+  build:
+    name: Build images
+    runs-on: ubuntu-latest
+    needs: quality
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build app image
+        run: docker build -t airfare-app:${{ github.sha }} app
+
+      - name: Build airflow image
+        run: docker build -t airfare-airflow:${{ github.sha }} airflow
+
+  deploy:
+    name: Deploy to server
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+
+      - name: Add host key
+        run: ssh-keyscan -H "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Sync project to server
+        run: rsync -az --delete ./ "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:${{ secrets.DEPLOY_PATH }}"
+
+      - name: Run remote deploy
+        run: ssh "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" "cd ${{ secrets.DEPLOY_PATH }} && bash infra/scripts/deploy.sh"

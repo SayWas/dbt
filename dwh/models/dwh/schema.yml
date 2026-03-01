@@ -1,0 +1,31 @@
+version: 2
+
+models:
+  - name: dwh_route_price_features
+    description: "DWH-слой агрегированных фич для динамики цен по направлениям."
+    tests:
+      - elementary.all_columns_anomalies:
+          timestamp_column: captured_date
+      - elementary.dimension_anomalies:
+          timestamp_column: captured_date
+          dimensions: [route_origin, route_destination]
+      - elementary.freshness_anomalies:
+          timestamp_column: captured_date
+    columns:
+      - name: feature_key
+        description: "Суррогатный ключ набора фич."
+        tests:
+          - unique
+          - not_null
+      - name: route_key
+        description: "Ключ маршрута."
+        tests:
+          - not_null
+      - name: avg_price
+        description: "Средняя цена за маршрут/дату вылета/дату снимка."
+        tests:
+          - not_null
+      - name: captured_date
+        description: "Дата снимка для инкрементальной актуализации."
+        tests:
+          - not_null

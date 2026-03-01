@@ -1,0 +1,39 @@
+name: airfare_analytics
+version: "1.0.0"
+config-version: 2
+
+profile: airfare_analytics
+
+flags:
+  require_explicit_package_overrides_for_builtin_materializations: false
+
+model-paths: ["models"]
+macro-paths: ["macros"]
+seed-paths: ["seeds"]
+test-paths: ["tests"]
+
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+models:
+  airfare_analytics:
+    +persist_docs:
+      relation: true
+      columns: true
+    stg:
+      +schema: stg
+      +materialized: view
+      +tags: ["stg"]
+    ods:
+      +schema: ods
+      +materialized: incremental
+      +tags: ["ods"]
+    dwh:
+      +schema: dwh
+      +materialized: incremental
+      +tags: ["dwh"]
+    dm:
+      +schema: dm
+      +materialized: table
+      +tags: ["dm", "mart"]

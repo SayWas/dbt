@@ -1,0 +1,44 @@
+version: 2
+
+models:
+  - name: dm_route_purchase_recommendations
+    description: "Витрина тайминга покупки: лучший горизонт до вылета, лучшее окно поиска и волатильность маршрута."
+    columns:
+      - name: route_key
+        description: "Ключ маршрута."
+        tests:
+          - unique
+          - not_null
+      - name: route_origin
+        description: "Код аэропорта вылета."
+        tests:
+          - not_null
+      - name: route_destination
+        description: "Код аэропорта назначения."
+        tests:
+          - not_null
+      - name: best_days_before_departure
+        description: "Оптимальное количество дней до вылета для покупки по минимуму средней цены."
+        tests:
+          - not_null
+      - name: best_search_weekday
+        description: "Лучший день недели для поиска билета по историческим данным."
+        tests:
+          - accepted_values:
+              values: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+      - name: best_search_hour
+        description: "Лучший час суток для поиска билета."
+        tests:
+          - not_null
+      - name: route_avg_price
+        description: "Средняя цена по маршруту."
+        tests:
+          - not_null
+      - name: route_price_stddev
+        description: "Стандартное отклонение цены (волатильность)."
+        tests:
+          - not_null
+      - name: route_price_cv
+        description: "Коэффициент вариации цены (stddev / average)."
+        tests:
+          - not_null

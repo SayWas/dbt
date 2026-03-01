@@ -1,0 +1,38 @@
+version: 2
+
+models:
+  - name: ods_flight_price_snapshots
+    description: "ODS-слой снимков цен по маршрутам и дате вылета."
+    tests:
+      - elementary.volume_anomalies:
+          timestamp_column: captured_at
+      - elementary.event_freshness_anomalies:
+          event_timestamp_column: departure_at
+          update_timestamp_column: captured_at
+    columns:
+      - name: record_hash
+        description: "Ссылка на исходную запись STG."
+        tests:
+          - unique
+          - not_null
+          - relationships:
+              to: ref('stg_raw_flight_prices')
+              field: record_hash
+      - name: route_key
+        description: "Ключ направления."
+        tests:
+          - not_null
+      - name: days_before_departure
+        description: "Количество дней до вылета на момент фиксации цены."
+        tests:
+          - not_null
+      - name: price
+        description: "Цена билета в выбранной валюте."
+        tests:
+          - not_null
+          - elementary.column_anomalies:
+              timestamp_column: captured_at
+      - name: captured_at
+        description: "Время фиксации цены."
+        tests:
+          - not_null
