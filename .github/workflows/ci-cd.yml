@@ -15,29 +15,15 @@ jobs:
     name: Quality checks
     runs-on: ubuntu-latest
     env:
-      POSTGRES_HOST: localhost
-      POSTGRES_PORT: "5432"
-      POSTGRES_DB: dwh
-      POSTGRES_USER: dwh
-      POSTGRES_PASSWORD: dwh
+      POSTGRES_HOST: ${{ secrets.DB_HOST }}
+      POSTGRES_PORT: ${{ secrets.DB_PORT }}
+      POSTGRES_DB: ${{ secrets.DB_NAME }}
+      POSTGRES_USER: ${{ secrets.DB_USER }}
+      POSTGRES_PASSWORD: ${{ secrets.DB_PASSWORD }}
       POSTGRES_STG_SCHEMA: stg
       POSTGRES_ODS_SCHEMA: ods
       POSTGRES_DWH_SCHEMA: dwh
       POSTGRES_DM_SCHEMA: dm
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_DB: dwh
-          POSTGRES_USER: dwh
-          POSTGRES_PASSWORD: dwh
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U dwh -d dwh"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -57,22 +43,22 @@ jobs:
 
       - name: Prepare dbt source table
         run: |
-          python - <<'PY'
+          python - << 'PY'
           import os
           import psycopg2
 
           conn = psycopg2.connect(
-              host=os.getenv("POSTGRES_HOST", "localhost"),
+              host=os.getenv("POSTGRES_HOST"),
               port=os.getenv("POSTGRES_PORT", "5432"),
-              dbname=os.getenv("POSTGRES_DB", "dwh"),
-              user=os.getenv("POSTGRES_USER", "dwh"),
-              password=os.getenv("POSTGRES_PASSWORD", "dwh"),
+              dbname=os.getenv("POSTGRES_DB"),
+              user=os.getenv("POSTGRES_USER"),
+              password=os.getenv("POSTGRES_PASSWORD"),
           )
           conn.autocommit = True
+
           with conn.cursor() as cur:
               cur.execute("CREATE SCHEMA IF NOT EXISTS stg;")
-              cur.execute(
-                  '''
+              cur.execute("""
                   CREATE TABLE IF NOT EXISTS stg.stg_raw_flight_prices (
                       record_hash TEXT PRIMARY KEY,
                       route_origin TEXT NOT NULL,
@@ -84,8 +70,8 @@ jobs:
                       price NUMERIC(12, 2) NOT NULL,
                       ingested_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
                   );
-                  '''
-              )
+              """)
+
           conn.close()
           PY
 
@@ -98,7 +84,7 @@ jobs:
       - name: Run dbt models
         run: dbt run --project-dir dwh --profiles-dir dwh/profiles --select tag:stg tag:ods tag:dwh tag:dm
 
-      - name: Run dbt tests (core suite)
+      - name: Run dbt tests
         run: >
           dbt test --project-dir dwh --profiles-dir dwh/profiles
           --select tag:stg tag:ods tag:dwh tag:dm
