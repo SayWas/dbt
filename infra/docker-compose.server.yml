@@ -3,6 +3,7 @@ x-airflow-common:
   build:
     context: ../airflow
     dockerfile: Dockerfile
+  user: "${AIRFLOW_UID:-50000}:0"
   env_file:
     - ../.env
   environment:

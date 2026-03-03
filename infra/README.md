@@ -39,3 +39,12 @@ bash -n infra/scripts/deploy.sh && echo "deploy.sh syntax OK"
 
 - В проекте уже добавлен `.gitattributes` с `eol=lf` для `*.sh`, `*.yml`, `.env*`.
 - После изменения этого файла можно один раз сделать `git add --renormalize .` и закоммитить нормализованные файлы.
+
+## Если `dbt deps` падает в Airflow
+
+Частая причина на Linux-сервере: Airflow запускается от uid `50000`, а примонтированный `dwh/` принадлежит другому пользователю. В итоге `dbt deps` не может писать `dbt_packages/` и падает с `exit status 2`.
+
+Решение:
+
+- В `.env` на сервере выставить `AIRFLOW_UID` в uid текущего deploy-пользователя (`id -u`).
+- Перезапустить стек через `bash infra/scripts/deploy.sh`.
