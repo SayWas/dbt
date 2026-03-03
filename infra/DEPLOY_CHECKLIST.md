@@ -10,10 +10,10 @@
    `deploy.sh` automatically synchronizes `AIRFLOW_UID` in `.env` with the current server user uid.
 
 3. Verify endpoints:
-   - `http://<server-ip>:8000/health`
-   - `http://<server-ip>:8081` (MongoDB UI, mongo-express)
-   - `http://<server-ip>:8000/reports/elementary` (after first successful report run)
-   - `http://<server-ip>:8080` (Airflow)
+   - `http://185.43.6.198:8000/health`
+   - `http://185.43.6.198:8081` (MongoDB UI, mongo-express)
+   - `http://185.43.6.198:8000/reports/elementary` (after first successful report run)
+   - `http://185.43.6.198:8080` (Airflow)
 4. In Airflow, confirm DAGs are enabled:
    - `flight_price_generate_dag`
    - `mongo_to_postgres_el_dag`
