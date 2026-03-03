@@ -1,0 +1,14 @@
+extends: default
+
+ignore: |
+  dwh/dbt_packages/**
+  dwh/target/**
+
+rules:
+  line-length:
+    max: 140
+  document-start: disable
+  truthy:
+    check-keys: false
+  new-lines:
+    type: unix
