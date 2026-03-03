@@ -9,6 +9,14 @@ if [[ ! -f ".env" ]]; then
   exit 1
 fi
 
+CURRENT_UID="$(id -u)"
+if grep -q '^AIRFLOW_UID=' .env; then
+  sed -i "s/^AIRFLOW_UID=.*/AIRFLOW_UID=${CURRENT_UID}/" .env
+else
+  printf '\nAIRFLOW_UID=%s\n' "${CURRENT_UID}" >> .env
+fi
+echo "[deploy] AIRFLOW_UID set to ${CURRENT_UID}"
+
 echo "[deploy] pulling latest base images"
 docker compose -f infra/docker-compose.server.yml --env-file .env pull || true
 

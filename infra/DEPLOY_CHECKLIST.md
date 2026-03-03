@@ -7,6 +7,8 @@
    bash infra/scripts/deploy.sh
    ```
 
+   `deploy.sh` automatically synchronizes `AIRFLOW_UID` in `.env` with the current server user uid.
+
 3. Verify endpoints:
    - `http://<server-ip>:8000/health`
    - `http://<server-ip>:8081` (MongoDB UI, mongo-express)
