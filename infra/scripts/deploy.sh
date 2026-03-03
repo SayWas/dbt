@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+cd "${ROOT_DIR}"
+
+if [[ ! -f ".env" ]]; then
+  echo "Missing .env in project root. Copy infra/env/server.env.example first."
+  exit 1
+fi
+
+echo "[deploy] pulling latest base images"
+docker compose -f infra/docker-compose.server.yml --env-file .env pull || true
+
+echo "[deploy] building project images"
+docker compose -f infra/docker-compose.server.yml --env-file .env build
+
+echo "[deploy] running stack"
+docker compose -f infra/docker-compose.server.yml --env-file .env up -d
+
+echo "[deploy] done"
+echo "Airflow UI: http://<server-ip>:8080"

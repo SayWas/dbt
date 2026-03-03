@@ -1,0 +1,35 @@
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.idea/
+.vscode/
+*.log
+.env
+*.env.local
+*.db
+
+# dbt artifacts
+dwh/target/
+dwh/dbt_packages/
+dwh/logs/
+
+# Airflow artifacts
+airflow/logs/
+airflow/plugins/__pycache__/
+
+# Elementary report artifacts
+docs/elementary_report.html
+docs/elementary_output.json
+docs/edr_target/
+
+# Notebook checkpoints
+.ipynb_checkpoints/
+
+# OS files
+.DS_Store
+Thumbs.db
