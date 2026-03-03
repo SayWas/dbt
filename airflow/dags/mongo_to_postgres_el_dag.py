@@ -11,7 +11,6 @@ sys.path.append("/opt/airflow/jobs")
 
 from el_mongo_to_postgres import run_el_mongo_to_postgres
 
-
 default_args = {
     "owner": "data-platform",
     "depends_on_past": False,

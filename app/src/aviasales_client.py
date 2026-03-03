@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+import logging
 import random
 from datetime import UTC, datetime, timedelta
 
 import httpx
 
 from .schemas import FlightPriceRecord
+
+logger = logging.getLogger(__name__)
+PLACEHOLDER_API_TOKEN = "replace_me"  # noqa: S105
 
 
 class AviasalesClient:
@@ -22,7 +26,7 @@ class AviasalesClient:
         destinations: list[str],
         days_ahead: int,
     ) -> list[FlightPriceRecord]:
-        if self.api_token and self.api_token != "replace_me":
+        if self.api_token and self.api_token != PLACEHOLDER_API_TOKEN:
             api_records = await self._fetch_from_api(origins, destinations, days_ahead)
             if api_records:
                 return api_records
@@ -52,7 +56,11 @@ class AviasalesClient:
                             "currency": "rub",
                         }
                         try:
-                            response = await client.get(f"{self.base_url}/prices_for_dates", params=params, headers=headers)
+                            response = await client.get(
+                                f"{self.base_url}/prices_for_dates",
+                                params=params,
+                                headers=headers,
+                            )
                             response.raise_for_status()
                             payload = response.json()
                             price_value = self._extract_price(payload)
@@ -67,9 +75,16 @@ class AviasalesClient:
                                     price=price_value,
                                 )
                             )
-                        except Exception:
+                        except Exception as exc:
                             # In learning environments API limits are common, so one failed call
                             # should not break the whole batch generation.
+                            logger.warning(
+                                "Aviasales API request failed for route %s->%s and day %s: %s",
+                                origin,
+                                destination,
+                                departure.date().isoformat(),
+                                exc,
+                            )
                             continue
         return records
 
@@ -88,28 +103,35 @@ class AviasalesClient:
         return None
 
     @staticmethod
-    def _mock_prices(origins: list[str], destinations: list[str], days_ahead: int) -> list[FlightPriceRecord]:
+    def _mock_prices(
+        origins: list[str],
+        destinations: list[str],
+        days_ahead: int,
+    ) -> list[FlightPriceRecord]:
         captured_at = datetime.now(UTC)
         result: list[FlightPriceRecord] = []
 
-        random.seed(captured_at.strftime("%Y-%m-%d"))
+        random.seed(captured_at.strftime("%Y-%m-%d"))  # noqa: S311
         for origin in origins:
             for destination in destinations:
                 if origin == destination:
                     continue
-                baseline = random.randint(5500, 22000)
+                baseline = random.randint(5500, 22000)  # noqa: S311
                 for day_idx in range(days_ahead):
                     departure = captured_at + timedelta(days=day_idx + 1)
                     demand_coef = 1.0 + (0.25 if departure.weekday() in (4, 5, 6) else 0.0)
                     lead_time_coef = max(0.8, 1.25 - day_idx / 120)
-                    noise = random.uniform(0.9, 1.1)
+                    noise = random.uniform(0.9, 1.1)  # noqa: S311
                     result.append(
                         FlightPriceRecord(
                             route_origin=origin,
                             route_destination=destination,
                             departure_at=departure,
                             captured_at=captured_at,
-                            price=round(baseline * demand_coef * lead_time_coef * noise, 2),
+                            price=round(
+                                baseline * demand_coef * lead_time_coef * noise,
+                                2,
+                            ),
                         )
                     )
         return result

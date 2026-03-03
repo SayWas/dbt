@@ -23,7 +23,7 @@ repos:
     rev: v1.35.1
     hooks:
       - id: yamllint
-        args: ["-d", "{extends: default, rules: {line-length: {max: 140}}}"]
+        args: ["-c", ".yamllint.yml"]
 
   - repo: https://github.com/sqlfluff/sqlfluff
     rev: 3.3.1

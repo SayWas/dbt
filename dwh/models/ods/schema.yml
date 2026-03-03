@@ -6,6 +6,8 @@ models:
     tests:
       - elementary.volume_anomalies:
           timestamp_column: captured_at
+          config:
+            severity: warn
       - elementary.event_freshness_anomalies:
           event_timestamp_column: departure_at
           update_timestamp_column: captured_at

@@ -10,7 +10,11 @@ from .schemas import GeneratePricesRequest
 
 app = FastAPI(title="Airfare Generator Service", version="1.0.0")
 
-mongo_repo = MongoRepository(settings.mongo_uri, settings.mongo_db, settings.mongo_collection)
+mongo_repo = MongoRepository(
+    settings.mongo_uri,
+    settings.mongo_db,
+    settings.mongo_collection,
+)
 aviasales_client = AviasalesClient(
     base_url=settings.aviasales_base_url,
     api_token=settings.aviasales_api_token,
@@ -32,14 +36,25 @@ async def health() -> dict[str, str]:
 async def elementary_report() -> FileResponse:
     report_path = Path("/app/docs/elementary_report.html")
     if not report_path.exists():
-        raise HTTPException(status_code=404, detail="Elementary report is not generated yet.")
-    return FileResponse(report_path, media_type="text/html", filename="elementary_report.html")
+        raise HTTPException(
+            status_code=404,
+            detail="Elementary report is not generated yet.",
+        )
+    return FileResponse(
+        report_path,
+        media_type="text/html",
+        filename="elementary_report.html",
+    )
 
 
 @app.post("/api/v1/prices/generate")
 async def generate_prices(payload: GeneratePricesRequest) -> dict[str, int]:
-    origins = payload.origins or [item.strip() for item in settings.default_origins.split(",") if item.strip()]
-    destinations = payload.destinations or [item.strip() for item in settings.default_destinations.split(",") if item.strip()]
+    origins = payload.origins or [
+        item.strip() for item in settings.default_origins.split(",") if item.strip()
+    ]
+    destinations = payload.destinations or [
+        item.strip() for item in settings.default_destinations.split(",") if item.strip()
+    ]
 
     records = await aviasales_client.fetch_prices(
         origins=origins,

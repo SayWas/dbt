@@ -10,7 +10,6 @@ sys.path.append("/opt/airflow/jobs")
 
 from run_dbt import run_elementary_report
 
-
 default_args = {
     "owner": "data-platform",
     "depends_on_past": False,

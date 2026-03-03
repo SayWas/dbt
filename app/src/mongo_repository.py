@@ -16,7 +16,12 @@ class MongoRepository:
 
     def ensure_indexes(self) -> None:
         self.collection.create_index(
-            [("route_origin", 1), ("route_destination", 1), ("departure_at", 1), ("captured_at", 1)],
+            [
+                ("route_origin", 1),
+                ("route_destination", 1),
+                ("departure_at", 1),
+                ("captured_at", 1),
+            ],
             name="ix_route_departure_capture",
         )
 

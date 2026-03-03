@@ -44,10 +44,12 @@ best_lead_time as (
         segment_samples,
         row_number() over (
             partition by route_key
-            order by avg_price_for_days_before_departure asc, segment_samples desc
+            order by
+                case when segment_samples >= {{ min_segment_samples }} then 1 else 0 end desc,
+                avg_price_for_days_before_departure asc,
+                segment_samples desc
         ) as rn
     from lead_time_stats
-    where segment_samples >= {{ min_segment_samples }}
 ),
 search_time_stats as (
     select
@@ -68,10 +70,12 @@ best_search_slot as (
         segment_samples,
         row_number() over (
             partition by route_key
-            order by avg_price_for_search_slot asc, segment_samples desc
+            order by
+                case when segment_samples >= {{ min_segment_samples }} then 1 else 0 end desc,
+                avg_price_for_search_slot asc,
+                segment_samples desc
         ) as rn
     from search_time_stats
-    where segment_samples >= {{ min_segment_samples }}
 ),
 final as (
     select

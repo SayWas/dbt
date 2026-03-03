@@ -2,7 +2,9 @@ version: 2
 
 models:
   - name: dm_route_purchase_recommendations
-    description: "Витрина тайминга покупки: лучший горизонт до вылета, лучшее окно поиска и волатильность маршрута."
+    description: >-
+      Витрина тайминга покупки: лучший горизонт до вылета,
+      лучшее окно поиска и волатильность маршрута.
     columns:
       - name: route_key
         description: "Ключ маршрута."
@@ -18,7 +20,9 @@ models:
         tests:
           - not_null
       - name: best_days_before_departure
-        description: "Оптимальное количество дней до вылета для покупки по минимуму средней цены."
+        description: >-
+          Оптимальное количество дней до вылета для покупки
+          по минимуму средней цены.
         tests:
           - not_null
       - name: best_search_weekday

@@ -5,6 +5,7 @@ import os
 from datetime import UTC, datetime
 
 import psycopg2
+from psycopg2 import sql
 from psycopg2.extras import execute_values
 from pymongo import MongoClient
 
@@ -28,7 +29,12 @@ def _postgres_dsn() -> str:
     )
 
 
-def _record_hash(origin: str, destination: str, departure_at: datetime, captured_at: datetime) -> str:
+def _record_hash(
+    origin: str,
+    destination: str,
+    departure_at: datetime,
+    captured_at: datetime,
+) -> str:
     value = f"{origin}|{destination}|{departure_at.isoformat()}|{captured_at.isoformat()}"
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
@@ -46,9 +52,14 @@ def run_el_mongo_to_postgres() -> int:
 
     with psycopg2.connect(_postgres_dsn()) as conn:
         with conn.cursor() as cur:
-            cur.execute(f"CREATE SCHEMA IF NOT EXISTS {stg_schema};")
+            schema_identifier = sql.Identifier(stg_schema)
+            table_identifier = sql.Identifier(stg_table)
+            qualified_table = sql.SQL("{}.{}").format(schema_identifier, table_identifier)
+
+            cur.execute(sql.SQL("CREATE SCHEMA IF NOT EXISTS {};").format(schema_identifier))
             cur.execute(
-                f"""
+                sql.SQL(
+                    """
                 CREATE TABLE IF NOT EXISTS {stg_schema}.{stg_table} (
                     record_hash TEXT PRIMARY KEY,
                     provider TEXT NOT NULL,
@@ -62,10 +73,18 @@ def run_el_mongo_to_postgres() -> int:
                     ingested_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
                 );
                 """
+                ).format(stg_schema=schema_identifier, stg_table=table_identifier)
             )
 
             # High-watermark load keeps EL idempotent across regular schedules.
-            cur.execute(f"SELECT COALESCE(MAX(captured_at), '1970-01-01'::timestamptz) FROM {stg_schema}.{stg_table};")
+            cur.execute(
+                sql.SQL(
+                    """
+                    SELECT COALESCE(MAX(captured_at), '1970-01-01'::timestamptz)
+                    FROM {};
+                    """
+                ).format(qualified_table)
+            )
             (max_captured_at,) = cur.fetchone()
 
             mongo_filter = {"captured_at": {"$gt": max_captured_at}}
@@ -83,7 +102,12 @@ def run_el_mongo_to_postgres() -> int:
                 route_destination = str(doc.get("route_destination", "")).upper()
                 rows.append(
                     (
-                        _record_hash(route_origin, route_destination, departure_at, captured_at),
+                        _record_hash(
+                            route_origin,
+                            route_destination,
+                            departure_at,
+                            captured_at,
+                        ),
                         doc.get("provider", "aviasales"),
                         route_origin,
                         route_destination,
@@ -99,7 +123,8 @@ def run_el_mongo_to_postgres() -> int:
             if not rows:
                 return 0
 
-            insert_sql = f"""
+            insert_sql = sql.SQL(
+                """
                 INSERT INTO {stg_schema}.{stg_table} (
                     record_hash,
                     provider,
@@ -116,7 +141,9 @@ def run_el_mongo_to_postgres() -> int:
                     price = EXCLUDED.price,
                     ingested_at = EXCLUDED.ingested_at
             """
-            execute_values(cur, insert_sql, rows, page_size=200)
+            ).format(stg_schema=schema_identifier, stg_table=table_identifier)
+            insert_query = insert_sql.as_string(cur)
+            execute_values(cur, insert_query, rows, page_size=200)
         conn.commit()
 
     return len(rows)
